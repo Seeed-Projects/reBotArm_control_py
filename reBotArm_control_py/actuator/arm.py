@@ -572,6 +572,30 @@ class RobotArm:
             print(f"[ensure_mode/{name}] 跳过: {e}")
             return False
 
+    def _write_register_f32_retry(
+        self,
+        name: str,
+        mot: any,
+        register: int,
+        value: float,
+        label: str,
+        retries: int = 4,
+        delay: float = 0.08,
+    ) -> bool:
+        last_exc: Exception | None = None
+        for attempt in range(1, retries + 1):
+            try:
+                mot.write_register_f32(register, value)
+                return True
+            except Exception as exc:
+                last_exc = exc
+                time.sleep(delay * attempt)
+        print(
+            f"[mode_pos_vel/{name}] write {label} failed after "
+            f"{retries} attempts: {last_exc}"
+        )
+        return False
+
     def mode_mit(self, kp: Optional[np.ndarray] = None,
                  kd: Optional[np.ndarray] = None,
                  stabilize_delay: float = 0.2) -> bool:
@@ -612,14 +636,18 @@ class RobotArm:
         ok = True
         for jc in self._joints:
             m = self._motor_map[jc.name]
-            try:
-                m.write_register_f32(25, jc.vel_kp)   # KP_ASR  — 速度环 Kp
-                m.write_register_f32(26, jc.vel_ki)   # KI_ASR  — 速度环 Ki
-                m.write_register_f32(27, jc.pos_kp)   # KP_APR  — 位置环 Kp
-                m.write_register_f32(28, jc.pos_ki)   # KI_APR  — 位置环 Ki
-                time.sleep(0.02)
-            except Exception as e:
-                print(f"[mode_pos_vel/{jc.name}] 写 PI 参数失败: {e}")
+            ok &= self._write_register_f32_retry(
+                jc.name, m, 25, jc.vel_kp, "vel_kp"
+            )
+            ok &= self._write_register_f32_retry(
+                jc.name, m, 26, jc.vel_ki, "vel_ki"
+            )
+            ok &= self._write_register_f32_retry(
+                jc.name, m, 27, jc.pos_kp, "pos_kp"
+            )
+            ok &= self._write_register_f32_retry(
+                jc.name, m, 28, jc.pos_ki, "pos_ki"
+            )
             if not self._ensure_mode(jc.name, m, Mode.POS_VEL, 1000):
                 ok = False
             time.sleep(0.05)
