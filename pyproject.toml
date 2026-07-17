@@ -1,14 +1,14 @@
 [project]
 name = "rebotarm-control-py"
 version = "0.1.0"
-description = "Add your description here"
+description = "Control python for reBotArm"
 readme = "README.md"
-requires-python = "==3.10.*"
+requires-python = ">=3.10,<3.12"
 dependencies = [
     "meshcat>=0.3.2",
     "pin>=3.9.0",
-    "numpy>=1.24.0",
+    "numpy>=1.23.4",
     "pyyaml>=6.0",
-    "matplotlib>=3.10.8",
-    "motorbridge>=0.3.9",
+    "matplotlib>=3.10.0",
+    "motorbridge>=0.4.9",
 ]

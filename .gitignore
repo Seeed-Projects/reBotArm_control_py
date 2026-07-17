@@ -1,5 +1,12 @@
 
-# # Python virtual environment
+# Python bytecode cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Python virtual environment
 # .venv/
 
 # # VS Code
@@ -13,4 +20,5 @@
 
 # # pyproject.toml (local overrides)
 # pyproject.toml
+
 

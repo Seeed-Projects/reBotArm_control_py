@@ -28,6 +28,7 @@ def main() -> None:
 
     ctrl.start()
     print("--- 已启动末端位置控制器 ---\n")
+    print("--- End-effector pose controller started ---\n")
 
     while True:
         try:
@@ -65,7 +66,7 @@ def main() -> None:
                 ctrl.set_gripper_target(pos)
                 print(f"  夹爪 / Gripper -> {pos:.3f} rad")
             except ValueError:
-            print("  用法 / Usage: g <pos>")
+                print("  用法 / Usage: g <pos>")
             continue
 
         try:
