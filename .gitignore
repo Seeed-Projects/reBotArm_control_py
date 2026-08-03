@@ -10,7 +10,7 @@ __pycache__/
 # .venv/
 
 # # VS Code
-# .vscode/
+.vscode/
 
 # # Python version
 # .python-version
