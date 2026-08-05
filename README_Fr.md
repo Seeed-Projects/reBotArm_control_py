@@ -59,7 +59,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 #### Étape 2. Synchroniser l'Environnement (Installer Toutes les Dépendances)
 
 ```bash
-git clone https://github.com/vectorBH6/reBotArm_control_py.git
+git clone https://github.com/Seeed-Projects/reBotArm_control_py.git
 cd reBotArm_control_py
 uv sync
 ```
@@ -146,162 +146,30 @@ reBotArm_control_py/
 
 ---
 
-## 🎮 Programmes d'Exemple
+## 📚 Documentation Wiki
 
-### Outils de Débogage
+> **📖 Pour l'utilisation complète de chaque démo, veuillez consulter le wiki officiel :**
+>
+> 👉 **Version DM (moteurs Damiao)**: [https://wiki.seeedstudio.com/rebot_arm_b601_dm_pinocchio_meshcat/](https://wiki.seeedstudio.com/rebot_arm_b601_dm_pinocchio_meshcat/)
+>
+> 👉 **Version RS (moteurs RobStride)**: [https://wiki.seeedstudio.com/rebot_arm_b601_rs_pinocchio_meshcat/](https://wiki.seeedstudio.com/rebot_arm_b601_rs_pinocchio_meshcat/) *(disponible en anglais)*
 
-#### 1️⃣ Console Mono-Moteur (`1_damiao_text.py`)
+### Scripts d'exemple (aperçu uniquement)
 
-Test direct d'un seul moteur avec le SDK motorbridge, supporte trois modes de contrôle.
+Le dossier `example/` contient les scripts suivants. Les formats d'entrée, les commandes interactives, le comportement attendu, les notes de sécurité et le réglage des paramètres **ne sont plus maintenus dans ce README** : veuillez consulter le wiki.
 
-**Utilisation** :
-```bash
-uv run python example/1_damiao_text.py
-```
+- `0x01rs06_test.py` / `1_damiao_test.py` — Console mono-moteur (spécifique au fournisseur)
+- `2_zero_and_read.py` — Calibration du zéro et surveillance des angles
+- `3_mit_control.py` — Contrôle d'articulations en mode MIT
+- `4_pos_vel_control.py` — Contrôle d'articulations en mode POS_VEL
+- `5_fk_test.py` / `6_ik_test.py` — Tests de cinématique directe / inverse
+- `7_arm_ik_control.py` / `8_arm_traj_control.py` — Contrôle IK en temps réel / contrôle par trajectoire
+- `9_gravity_compensation.py` / `10_gravity_compensation_lock.py` — Compensation de gravité
+- `sim/fk_sim.py` / `sim/ik_sim.py` / `sim/traj_sim.py` — Utilitaires de simulation (sans matériel)
 
-**Commandes Interactives** :
-| Commande | Description |
-|---------|-------------|
-| `mit <pos_deg> [vel kp kd tau]` | Mode MIT |
-| `posvel <pos_deg> [vlim]` | Mode POS_VEL |
-| `vel <vel_rad_s>` | Mode Vitesse |
-| `enable` / `disable` | Activer/Désactiver |
-| `set_zero` | Définir la position zéro |
-| `state` | Voir l'état |
-
----
-
-#### 2️⃣ Calibration Zéro et Surveillance d'Angle (`2_zero_and_read.py`)
-
-Définit automatiquement les zéros de toutes les articulations et affiche les angles en temps réel.
-
-**Utilisation** :
-```bash
-uv run python example/2_zero_and_read.py
-```
-
----
-
-### Tests Cinématiques
-
-#### 5️⃣ Test de Cinématique Directe (`5_fk_test.py`)
-
-Calcule la pose de l'effecteur terminal à partir des angles des articulations.
-
-**Entrée** : 6 angles d'articulation (degrés)
-
-**Sortie** :
-- Position de l'effecteur (X, Y, Z) — Unité : mètres
-- Matrice de rotation (3×3)
-- Angles d'Euler (Roulis/Tangage/Lacet) — Unité : degrés
-
-**Exemple** :
-```bash
-uv run python example/5_fk_test.py
-> 0 0 0 0 0 0
-> 45 -30 15 -60 90 180
-```
-
----
-
-#### 6️⃣ Test de Cinématique Inverse (`6_ik_test.py`)
-
-Résout les angles des articulations à partir de la pose désirée de l'effecteur.
-
-**Format d'Entrée** :
-- Position uniquement : `<x> <y> <z>` (mètres)
-- Position + Orientation : `<x> <y> <z> <roll> <pitch> <yaw>` (degrés)
-
-**Exemple** :
-```bash
-uv run python example/6_ik_test.py
-> 0.25 0.0 0.15              # Position uniquement
-> 0.25 0.0 0.15 0 0 0        # Position + Orientation
-```
-
----
-
-### Contrôle Réel
-
-:::tip Configuration des Permissions
-Avant d'exécuter les exemples de contrôle réel, vous devez configurer les permissions du périphérique :
-
-```bash
-# Définir la permission du périphérique série (Damiao USB2CAN)
-sudo chmod 666 /dev/ttyACM0
-
-# Ou pour l'interface CAN (par exemple can0)
-sudo chmod 666 /dev/can0
-```
-:::
-
-#### 7️⃣ Contrôle IK en Temps Réel (`7_arm_ik_control.py`)
-
-Contrôle en temps réel de l'effecteur basé sur le solveur IK.
-
-**Commandes Interactives** :
-| Commande | Description |
-|---------|-------------|
-| `x y z [roll pitch yaw]` | Pose cible de l'effecteur |
-| `state` | Voir l'état actuel/cible |
-| `pos` | Position actuelle de l'effecteur |
-| `q/quit/exit` | Quitter |
-
-**Utilisation** :
-```bash
-uv run python example/7_arm_ik_control.py
-> 0.3 0.0 0.2
-> 0.3 0.1 0.25 0 0.5 0
-```
-
----
-
-#### 8️⃣ Contrôle de Planification de Trajectoire (`8_arm_traj_control.py`)
-
-Planification de trajectoire géodésique SE(3) + suivi CLIK.
-
-**Format d'Entrée** :
-```
-x y z [roll pitch yaw] [duration]
-```
-
-**Paramètres** :
-- `x, y, z`: Position cible (mètres)
-- `roll, pitch, yaw`: Orientation cible (radians)
-- `duration`: Durée du mouvement (secondes), défaut 2.0s
-
-**Utilisation** :
-```bash
-uv run python example/8_arm_traj_control.py
-> 0.3 0.0 0.3 0 0.4 0 2.0
-```
-
----
-
-#### 9️⃣ Contrôle de Compensation de Gravité (`9_gravity_compensation.py`)
-
-Compense la gravité des articulations en utilisant le modèle dynamique Pinocchio.
-
-**Loi de Contrôle** :
-```
-tau = g(q)          — Compensation de gravité
-pos = position actuelle du moteur  — La position suit la position actuelle
-kp = 2,  kd = 1     — Rigidité/amortissement unifiés pour tous les moteurs
-```
-
-**Comportement Attendu** :
-- Le bras robotique peut « flotter » dans n'importe quelle posture
-- Ne tombe pas sous son propre poids lorsqu'il est relâché
-- Peut être déplacé manuellement vers n'importe quelle position
-
-**Utilisation** :
-```bash
-uv run python example/9_gravity_compensation.py
-```
-
-**Sortie** :
-- Affichage en temps réel du couple attendu pour chaque articulation (N·m)
-- Appuyez sur `Ctrl+C` pour arrêter et déconnecter
+> **Pourquoi les instructions détaillées ne sont-elles plus dans ce README ?**
+>
+> Pour maintenir **une source unique de vérité** et garantir la cohérence du tutoriel, tous les détails d'utilisation spécifiques à chaque démo (formats d'entrée, commandes interactives, comportement attendu, notes de sécurité, réglage des paramètres) ont été déplacés dans le wiki. En cas de divergence entre les deux, le wiki prime. Veuillez ouvrir des issues / PRs sur le dépôt du wiki lorsqu'une mise à jour du contenu est nécessaire.
 
 ---
 
@@ -313,8 +181,8 @@ Ce projet est open source sous la **Licence MIT**.
 
 ## ☎ Nous Contacter
 
-- **Support Technique** : [Soumettre un Issue](https://github.com/vectorBH6/reBotArm_control_py/issues)
-- **Dépôt** : [GitHub](https://github.com/vectorBH6/reBotArm_control_py)
+- **Support Technique** : [Soumettre un Issue](https://github.com/Seeed-Projects/reBotArm_control_py/issues)
+- **Dépôt** : [GitHub](https://github.com/Seeed-Projects/reBotArm_control_py)
 
 ---
 

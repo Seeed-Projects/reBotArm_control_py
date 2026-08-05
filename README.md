@@ -59,7 +59,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 #### Step 2. Sync Environment (Install All Dependencies)
 
 ```bash
-git clone https://github.com/vectorBH6/reBotArm_control_py.git
+git clone https://github.com/Seeed-Projects/reBotArm_control_py.git
 cd reBotArm_control_py
 uv sync
 ```
@@ -146,162 +146,30 @@ reBotArm_control_py/
 
 ---
 
-## 🎮 Example Programs
+## 📚 Wiki Documentation
 
-### Debug Tools
+> **📖 For complete usage of every demo, please refer to the official wiki:**
+>
+> 👉 **DM Version (Damiao Motors)**: [https://wiki.seeedstudio.com/rebot_arm_b601_dm_pinocchio_meshcat/](https://wiki.seeedstudio.com/rebot_arm_b601_dm_pinocchio_meshcat/)
+>
+> 👉 **RS Version (RobStride Motors)**: [https://wiki.seeedstudio.com/rebot_arm_b601_rs_pinocchio_meshcat/](https://wiki.seeedstudio.com/rebot_arm_b601_rs_pinocchio_meshcat/)
 
-#### 1️⃣ Single Motor Console (`1_damiao_text.py`)
+### Example Scripts (overview only)
 
-Direct motorbridge SDK single motor testing with three control modes.
+The `example/` folder ships the following scripts. For input formats, interactive commands, expected behavior, safety notes, and parameter tuning, please consult the wiki — those details are **no longer maintained in this README**.
 
-**Usage**:
-```bash
-uv run python example/1_damiao_text.py
-```
+- `0x01rs06_test.py` / `1_damiao_test.py` — Single motor console (vendor-specific)
+- `2_zero_and_read.py` — Zero calibration & angle monitoring
+- `3_mit_control.py` — MIT-mode joint control
+- `4_pos_vel_control.py` — POS_VEL-mode joint control
+- `5_fk_test.py` / `6_ik_test.py` — Forward / inverse kinematics tests
+- `7_arm_ik_control.py` / `8_arm_traj_control.py` — IK real-time / trajectory control
+- `9_gravity_compensation.py` / `10_gravity_compensation_lock.py` — Gravity compensation
+- `sim/fk_sim.py` / `sim/ik_sim.py` / `sim/traj_sim.py` — Simulation utilities (no hardware required)
 
-**Interactive Commands**:
-| Command | Description |
-|---------|-------------|
-| `mit <pos_deg> [vel kp kd tau]` | MIT mode |
-| `posvel <pos_deg> [vlim]` | POS_VEL mode |
-| `vel <vel_rad_s>` | Velocity mode |
-| `enable` / `disable` | Enable/Disable |
-| `set_zero` | Set zero position |
-| `state` | View state |
-
----
-
-#### 2️⃣ Zero Calibration & Angle Monitor (`2_zero_and_read.py`)
-
-Automatically set all joint zeros and display joint angles in real-time.
-
-**Usage**:
-```bash
-uv run python example/2_zero_and_read.py
-```
-
----
-
-### Kinematics Tests
-
-#### 5️⃣ Forward Kinematics Test (`5_fk_test.py`)
-
-Calculate end-effector pose from joint angles.
-
-**Input**: 6 joint angles (degrees)
-
-**Output**:
-- End-effector position (X, Y, Z) — Unit: meters
-- Rotation matrix (3×3)
-- Euler angles (Roll/Pitch/Yaw) — Unit: degrees
-
-**Example**:
-```bash
-uv run python example/5_fk_test.py
-> 0 0 0 0 0 0
-> 45 -30 15 -60 90 180
-```
-
----
-
-#### 6️⃣ Inverse Kinematics Test (`6_ik_test.py`)
-
-Solve joint angles from desired end-effector pose.
-
-**Input Format**:
-- Position only: `<x> <y> <z>` (meters)
-- Position + Orientation: `<x> <y> <z> <roll> <pitch> <yaw>` (degrees)
-
-**Example**:
-```bash
-uv run python example/6_ik_test.py
-> 0.25 0.0 0.15              # Position only
-> 0.25 0.0 0.15 0 0 0        # Position + Orientation
-```
-
----
-
-### Real Machine Control
-
-:::tip Permission Setup
-Before running real machine control examples, you need to set device permissions:
-
-```bash
-# Set serial device permission (Damiao USB2CAN)
-sudo chmod 666 /dev/ttyACM0
-
-# Or for CAN interface (e.g., can0)
-sudo chmod 666 /dev/can0
-```
-:::
-
-#### 7️⃣ IK Real-time Control (`7_arm_ik_control.py`)
-
-Real-time end-effector control based on IK solver.
-
-**Interactive Commands**:
-| Command | Description |
-|---------|-------------|
-| `x y z [roll pitch yaw]` | Target end-effector pose |
-| `state` | View current/target state |
-| `pos` | Current end-effector position |
-| `q/quit/exit` | Quit |
-
-**Usage**:
-```bash
-uv run python example/7_arm_ik_control.py
-> 0.3 0.0 0.2
-> 0.3 0.1 0.25 0 0.5 0
-```
-
----
-
-#### 8️⃣ Trajectory Planning Control (`8_arm_traj_control.py`)
-
-SE(3) geodesic trajectory planning + CLIK tracking.
-
-**Input Format**:
-```
-x y z [roll pitch yaw] [duration]
-```
-
-**Parameters**:
-- `x, y, z`: Target position (meters)
-- `roll, pitch, yaw`: Target orientation (radians)
-- `duration`: Movement duration (seconds), default 2.0s
-
-**Usage**:
-```bash
-uv run python example/8_arm_traj_control.py
-> 0.3 0.0 0.3 0 0.4 0 2.0
-```
-
----
-
-#### 9️⃣ Gravity Compensation Control (`9_gravity_compensation.py`)
-
-Compensates for joint gravity using Pinocchio dynamics model.
-
-**Control Law**:
-```
-tau = g(q)          — Gravity feedforward
-pos = current motor position  — Joint position follows current position
-kp = 2,  kd = 1     — Unified stiffness/damping for all motors
-```
-
-**Expected Behavior**:
-- The robotic arm can "float" in any posture
-- Won't fall due to its own weight when released
-- Can be manually moved to any position
-
-**Usage**:
-```bash
-uv run python example/9_gravity_compensation.py
-```
-
-**Output**:
-- Real-time display of expected torque for each joint (N·m)
-- Press `Ctrl+C` to stop and disconnect
+> **Why are the detailed usage instructions no longer in this README?**
+>
+> To keep **a single source of truth** and guarantee tutorial consistency, all demo-specific usage (input formats, interactive commands, expected behavior, safety notes, parameter tuning) has been moved to the wiki. If the two ever drift, the wiki wins. Please open issues / PRs against the wiki when content needs updating.
 
 ---
 
@@ -313,8 +181,8 @@ This project is open source under the **MIT License**.
 
 ## ☎ Contact Us
 
-- **Technical Support**: [Submit Issue](https://github.com/vectorBH6/reBotArm_control_py/issues)
-- **Repository**: [GitHub](https://github.com/vectorBH6/reBotArm_control_py)
+- **Technical Support**: [Submit Issue](https://github.com/Seeed-Projects/reBotArm_control_py/issues)
+- **Repository**: [GitHub](https://github.com/Seeed-Projects/reBotArm_control_py)
 
 ---
 
