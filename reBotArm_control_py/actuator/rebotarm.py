@@ -391,13 +391,10 @@ class JointGroup:
 
     # ── 状态读取 ───────────────────────────────────────────────────────
 
-    def _request_feedback(self) -> None:
+    def _poll_feedback(self) -> None:
+        """仅处理 CAN 接收队列中的反馈帧（快速，无总线发送）。"""
         seen: set[str] = set()
         for jc in self._jcfgs:
-            try:
-                self._mm[jc.name].request_feedback()
-            except Exception:
-                pass
             if jc.vendor not in seen:
                 seen.add(jc.vendor)
                 try:
@@ -405,24 +402,35 @@ class JointGroup:
                 except Exception:
                     pass
 
+    def _request_feedback(self) -> None:
+        """发送显式反馈请求帧 + 处理接收队列（慢，有总线发送）。"""
+        for jc in self._jcfgs:
+            try:
+                self._mm[jc.name].request_feedback()
+            except Exception:
+                pass
+        self._poll_feedback()
+
     def get_positions(self, request_feedback: bool = True) -> np.ndarray:
-        if request_feedback:
-            self._request_feedback()
+        # 始终发送显式请求帧 + 处理接收队列
+        # motorbridge 内部会针对 RS/DM 分别处理
+        self._request_feedback()
+        
         out: list[float] = []
         for jc in self._jcfgs:
             m = self._mm[jc.name]
-            if jc.vendor == "robstride":
-                # RobStride firmware streams compact type-0x18 report frames
-                # that get_state() never decodes, so the cached state freezes
-                # at its first (or zero) value. mechPos (0x7019) param reads
-                # return the live exact f32 position instead.
-                try:
-                    out.append(float(m.robstride_get_param_f32(0x7019)))
-                    continue
-                except CallError:
-                    pass
             st = m.get_state()
-            out.append(st.pos if st is not None else 0.0)
+            if st is not None:
+                out.append(st.pos)
+            else:
+                # 缓存为空时回退到 SDO 读取（安全兜底）
+                if jc.vendor == "robstride":
+                    try:
+                        out.append(float(m.robstride_get_param_f32(0x7019)))
+                        continue
+                    except CallError:
+                        pass
+                out.append(0.0)
         return np.array(out, dtype=np.float64)
 
     def get_velocities(self, request_feedback: bool = True) -> np.ndarray:

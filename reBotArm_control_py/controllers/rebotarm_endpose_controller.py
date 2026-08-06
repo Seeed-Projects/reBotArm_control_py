@@ -331,8 +331,8 @@ class RebotArmEndPose:
                     q_now = self._arm_group.get_positions(request_feedback=False)
                     q_now = pad_q_for_model(self._model, q_now, self._n)
                     tau_ff = compute_generalized_gravity(self._model, q_now, self._data)[: self._n]
-                    tau_ff[1] *= 1.55  # joint2 额外补偿
-                    tau_ff[2] *= 1.55  # joint3 额外补偿
+                    # tau_ff[1] *= 1.55  # joint2 额外补偿
+                    # tau_ff[2] *= 1.55  # joint3 额外补偿
                     
                 self._arm_group.send_mit(
                     self._q_target,
@@ -354,6 +354,7 @@ class RebotArmEndPose:
                 kp=self._gripper_group._mit_kp,
                 kd=self._gripper_group._mit_kd,
             )
+
 
     # ── 轨迹发送线程 ──────────────────────────────────────────────────────
 

@@ -49,7 +49,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 #### 步骤 2. 同步环境（安装所有依赖）
 
 ```bash
-git clone https://github.com/vectorBH6/reBotArm_control_py.git
+git clone https://github.com/Seeed-Projects/reBotArm_control_py.git
 cd reBotArm_control_py
 uv sync
 ```
@@ -139,159 +139,30 @@ reBotArm_control_py/
 
 ---
 
-## 🎮 示例程序
+## 📚 Wiki 文档
 
-### 调试工具
+> **📖 各 demo 的完整使用方法，请参考官方 Wiki：**
+>
+> 👉 **DM 版本（达妙电机）**: [https://wiki.seeedstudio.com/cn/rebot_arm_b601_dm_pinocchio_meshcat/](https://wiki.seeedstudio.com/cn/rebot_arm_b601_dm_pinocchio_meshcat/)
+>
+> 👉 **RS 版本（灵足电机）**: [https://wiki.seeedstudio.com/cn/rebot_arm_b601_rs_pinocchio_meshcat/](https://wiki.seeedstudio.com/cn/rebot_arm_b601_rs_pinocchio_meshcat/)
 
-#### 1️⃣ 单电机控制台 (`1_damiao_text.py`)
+### 示例脚本（仅列出文件名）
 
-直接使用 motorbridge SDK 进行单电机测试。
+`example/` 目录下提供以下脚本。关于输入格式、交互命令、预期行为、安全提示、参数调节等细节，**本 README 不再维护**，请以 Wiki 为准。
 
-**运行方式**：
-```bash
-uv run python example/1_damiao_text.py
-```
+- `0x01rs06_test.py` / `1_damiao_test.py` — 单电机控制台（按电机厂商区分）
+- `2_zero_and_read.py` — 零点校准与角度监控
+- `3_mit_control.py` — MIT 模式关节控制
+- `4_pos_vel_control.py` — POS_VEL 模式关节控制
+- `5_fk_test.py` / `6_ik_test.py` — 正/逆运动学测试
+- `7_arm_ik_control.py` / `8_arm_traj_control.py` — IK 实时控制 / 轨迹控制
+- `9_gravity_compensation.py` / `10_gravity_compensation_lock.py` — 重力补偿
+- `sim/fk_sim.py` / `sim/ik_sim.py` / `sim/traj_sim.py` — 仿真工具（无需硬件）
 
-**交互命令**：
-| 命令 | 说明 |
-|------|------|
-| `enable` / `disable` | 使能/失能 |
-| `set_zero` | 设置零位 |
-| `state` | 查看状态 |
-
----
-
-#### 2️⃣ 零点校准与角度监控 (`2_zero_and_read.py`)
-
-自动设置所有关节零点，实时显示关节角度。
-
-**运行方式**：
-```bash
-uv run python example/2_zero_and_read.py
-```
-
----
-
-### 运动学测试
-
-#### 5️⃣ 正运动学测试 (`5_fk_test.py`)
-
-根据关节角度计算末端位姿。
-
-**输入**：6 个关节角度（度）
-
-**输出**：
-- 末端位置 (X, Y, Z) — 单位：米
-- 旋转矩阵 (3×3)
-- 欧拉角 (横滚/俯仰/偏航) — 单位：度
-
-**示例**：
-```bash
-uv run python example/5_fk_test.py
-> 0 0 0 0 0 0
-> 45 -30 15 -60 90 180
-```
-
----
-
-#### 6️⃣ 逆运动学测试 (`6_ik_test.py`)
-
-根据期望末端位姿求解关节角度。
-
-**输入格式**：
-- 仅位置：`<x> <y> <z>`（米）
-- 位置 + 姿态：`<x> <y> <z> <roll> <pitch> <yaw>`（度）
-
-**示例**：
-```bash
-uv run python example/6_ik_test.py
-> 0.25 0.0 0.15              # 仅位置
-> 0.25 0.0 0.15 0 0 0        # 位置 + 姿态
-```
-
----
-
-### 实机控制
-
-:::tip 权限设置
-运行实机控制示例前，需要设置设备权限：
-
-```bash
-# 设置串口设备权限（达妙 USB2CAN）
-sudo chmod 666 /dev/ttyACM0
-
-# 或设置 CAN 设备权限（如 can0）
-sudo chmod 666 /dev/can0
-```
-:::
-
-#### 7️⃣ IK 实时控制 (`7_arm_ik_control.py`)
-
-基于 IK 解算的机械臂实时末端控制。
-
-**交互命令**：
-| 命令 | 说明 |
-|------|------|
-| `x y z [roll pitch yaw]` | 目标末端位姿 |
-| `state` | 查看状态 |
-| `pos` | 当前末端位置 |
-| `q/quit/exit` | 退出 |
-
-**运行方式**：
-```bash
-uv run python example/7_arm_ik_control.py
-> 0.3 0.0 0.2
-> 0.3 0.1 0.25 0 0.5 0
-```
-
----
-
-#### 8️⃣ 轨迹规划控制 (`8_arm_traj_control.py`)
-
-SE(3) 测地线轨迹规划 + CLIK 跟踪。
-
-**输入格式**：
-```
-x y z [roll pitch yaw] [duration]
-```
-
-**参数说明**：
-- `x, y, z`: 目标位置（米）
-- `roll, pitch, yaw`: 目标姿态（弧度）
-- `duration`: 运动时长（秒），默认 2.0s
-
-**运行方式**：
-```bash
-uv run python example/8_arm_traj_control.py
-> 0.3 0.0 0.3 0 0.4 0 2.0
-```
-
----
-
-#### 9️⃣ 重力补偿控制 (`9_gravity_compensation.py`)
-
-使用 Pinocchio 动力学模型补偿关节重力。
-
-**控制律**：
-```
-tau = g(q)          — 重力前馈
-pos = 当前电机位置   — 关节位置跟随当前位置
-kp = 2,  kd = 1     — 所有关节统一刚度/阻尼
-```
-
-**预期行为**：
-- 机械臂可以在任意姿态下"漂浮"
-- 松开后不会因自重坠落
-- 可以手动掰动到任意位置
-
-**运行方式**：
-```bash
-uv run python example/9_gravity_compensation.py
-```
-
-**输出**：
-- 实时显示各关节期望力矩（N·m）
-- 按 `Ctrl+C` 停止并断开连接
+> **为什么本 README 不再保留具体使用细节？**
+>
+> 为了保证**单一信息源**与教程一致性，所有 demo 的具体使用方法（输入格式、交互命令、预期行为、安全提示、参数调节）已统一迁移到 Wiki。如果两边出现不一致，以 Wiki 为准。如需更新内容，请在 Wiki 仓库提 Issue / PR。
 
 ---
 
@@ -303,8 +174,8 @@ uv run python example/9_gravity_compensation.py
 
 ## ☎ 联系我们
 
-- **技术支持**: [提交 Issue](https://github.com/vectorBH6/reBotArm_control_py/issues)
-- **项目仓库**: [GitHub](https://github.com/vectorBH6/reBotArm_control_py)
+- **技术支持**: [提交 Issue](https://github.com/Seeed-Projects/reBotArm_control_py/issues)
+- **项目仓库**: [GitHub](https://github.com/Seeed-Projects/reBotArm_control_py)
 
 ---
 

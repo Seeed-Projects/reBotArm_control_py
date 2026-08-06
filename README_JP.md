@@ -59,7 +59,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 #### ステップ 2. 環境の同期（すべての依存関係をインストール）
 
 ```bash
-git clone https://github.com/vectorBH6/reBotArm_control_py.git
+git clone https://github.com/Seeed-Projects/reBotArm_control_py.git
 cd reBotArm_control_py
 uv sync
 ```
@@ -146,162 +146,30 @@ reBotArm_control_py/
 
 ---
 
-## 🎮 サンプルプログラム
+## 📚 Wiki ドキュメント
 
-### デバッグツール
+> **📖 各デモの完全な使い方は、公式 Wiki を参照してください：**
+>
+> 👉 **DM バージョン（達妙モーター）**: [https://wiki.seeedstudio.com/ja/rebot_arm_b601_dm_pinocchio_meshcat/](https://wiki.seeedstudio.com/ja/rebot_arm_b601_dm_pinocchio_meshcat/)
+>
+> 👉 **RS バージョン（霊足モーター）**: [https://wiki.seeedstudio.com/ja/rebot_arm_b601_rs_pinocchio_meshcat/](https://wiki.seeedstudio.com/ja/rebot_arm_b601_rs_pinocchio_meshcat/)
 
-#### 1️⃣ 単一モーターコンソール (`1_damiao_text.py`)
+### サンプルスクリプト（概要のみ）
 
-motorbridge SDK を直接使用した単一モーターテスト、3 つの制御モードをサポート。
+`example/` フォルダには以下のスクリプトが含まれています。入力形式・対話コマンド・期待動作・安全上の注意・パラメータ調整などの詳細は **この README では管理しません**。Wiki を参照してください。
 
-**使用方法**：
-```bash
-uv run python example/1_damiao_text.py
-```
+- `0x01rs06_test.py` / `1_damiao_test.py` — 単モーターコンソール（ベンダー別）
+- `2_zero_and_read.py` — ゼロ点キャリブレーションと角度モニタリング
+- `3_mit_control.py` — MIT モード関節制御
+- `4_pos_vel_control.py` — POS_VEL モード関節制御
+- `5_fk_test.py` / `6_ik_test.py` — 順/逆運動学テスト
+- `7_arm_ik_control.py` / `8_arm_traj_control.py` — IK リアルタイム / 軌道制御
+- `9_gravity_compensation.py` / `10_gravity_compensation_lock.py` — 重力補償
+- `sim/fk_sim.py` / `sim/ik_sim.py` / `sim/traj_sim.py` — シミュレーションツール（ハードウェア不要）
 
-**インタラクティブコマンド**：
-| コマンド | 説明 |
-|---------|------|
-| `mit <pos_deg> [vel kp kd tau]` | MIT モード |
-| `posvel <pos_deg> [vlim]` | POS_VEL モード |
-| `vel <vel_rad_s>` | 速度モード |
-| `enable` / `disable` | 有効/無効 |
-| `set_zero` | ゼロ位置設定 |
-| `state` | 状態表示 |
-
----
-
-#### 2️⃣ ゼロキャリブレーションと角度監視 (`2_zero_and_read.py`)
-
-全関節のゼロ位置を自動設定し、関節角度をリアルタイム表示。
-
-**使用方法**：
-```bash
-uv run python example/2_zero_and_read.py
-```
-
----
-
-### 運動学テスト
-
-#### 5️⃣ 順運動学テスト (`5_fk_test.py`)
-
-関節角度からエンドエフェクタ姿勢を計算。
-
-**入力**：6 関節角度（度）
-
-**出力**：
-- エンドエフェクタ位置 (X, Y, Z) — 単位：メートル
-- 回転行列 (3×3)
-- オイラー角 (ロール/ピッチ/ヨー) — 単位：度
-
-**例**：
-```bash
-uv run python example/5_fk_test.py
-> 0 0 0 0 0 0
-> 45 -30 15 -60 90 180
-```
-
----
-
-#### 6️⃣ 逆運動学テスト (`6_ik_test.py`)
-
-希望するエンドエフェクタ姿勢から関節角度を求解。
-
-**入力形式**：
-- 位置のみ：`<x> <y> <z>`（メートル）
-- 位置 + 姿勢：`<x> <y> <z> <roll> <pitch> <yaw>`（度）
-
-**例**：
-```bash
-uv run python example/6_ik_test.py
-> 0.25 0.0 0.15              # 位置のみ
-> 0.25 0.0 0.15 0 0 0        # 位置 + 姿勢
-```
-
----
-
-### 実機制御
-
-:::tip 権限設定
-実機制御サンプルを実行する前に、デバイスの権限を設定する必要があります：
-
-```bash
-# シリアルデバイスの権限を設定（達妙 USB2CAN）
-sudo chmod 666 /dev/ttyACM0
-
-# または CAN インターフェース（例：can0）
-sudo chmod 666 /dev/can0
-```
-:::
-
-#### 7️⃣ IK リアルタイム制御 (`7_arm_ik_control.py`)
-
-IK ソルバーに基づくロボットアームリアルタイムエンドエフェクタ制御。
-
-**インタラクティブコマンド**：
-| コマンド | 説明 |
-|---------|------|
-| `x y z [roll pitch yaw]` | 目標エンドエフェクタ姿勢 |
-| `state` | 現在の状態/目標状態 |
-| `pos` | 現在のエンドエフェクタ位置 |
-| `q/quit/exit` | 終了 |
-
-**使用方法**：
-```bash
-uv run python example/7_arm_ik_control.py
-> 0.3 0.0 0.2
-> 0.3 0.1 0.25 0 0.5 0
-```
-
----
-
-#### 8️⃣ 軌道計画制御 (`8_arm_traj_control.py`)
-
-SE(3) 測地線軌道計画 + CLIK 追従。
-
-**入力形式**：
-```
-x y z [roll pitch yaw] [duration]
-```
-
-**パラメータ**：
-- `x, y, z`: 目標位置（メートル）
-- `roll, pitch, yaw`: 目標姿勢（ラジアン）
-- `duration`: 移動時間（秒）、デフォルト 2.0 秒
-
-**使用方法**：
-```bash
-uv run python example/8_arm_traj_control.py
-> 0.3 0.0 0.3 0 0.4 0 2.0
-```
-
----
-
-#### 9️⃣ 重力補償制御 (`9_gravity_compensation.py`)
-
-Pinocchio 动力学モデルを使用して関節の重力を補償します。
-
-**制御則**：
-```
-tau = g(q)          — 重力フォワード
-pos = 現在のモーター位置 — 関節位置は現在位置に従う
-kp = 2,  kd = 1     — すべての関節で統一された剛性/ダンピング
-```
-
-**期待される動作**：
-- ロボットアームは任意の姿勢で「浮遊」できます
-- 離しても自重で落下しません
-- 任意の位置に手で動かすことができます
-
-**使用方法**：
-```bash
-uv run python example/9_gravity_compensation.py
-```
-
-**出力**：
-- 各関節の期待トルクをリアルタイム表示（N·m）
-- `Ctrl+C` で停止して接続を切断
+> **なぜ詳細な使い方をこの README から削除したのですか？**
+>
+> **单一の真実の源 (single source of truth)** を保ち、チュートリアルの一貫性を保証するため、デモ固有の使い方（入力形式・対話コマンド・期待動作・安全上の注意・パラメータ調整）はすべて Wiki に集約しました。両者に食い違いが生じた場合は Wiki を優先してください。内容の更新は Wiki リポジトリへの Issue / PR でお願いします。
 
 ---
 
@@ -313,8 +181,8 @@ uv run python example/9_gravity_compensation.py
 
 ## ☎ お問い合わせ
 
-- **技術サポート**: [Issue を提出](https://github.com/vectorBH6/reBotArm_control_py/issues)
-- **リポジトリ**: [GitHub](https://github.com/vectorBH6/reBotArm_control_py)
+- **技術サポート**: [Issue を提出](https://github.com/Seeed-Projects/reBotArm_control_py/issues)
+- **リポジトリ**: [GitHub](https://github.com/Seeed-Projects/reBotArm_control_py)
 
 ---
 
