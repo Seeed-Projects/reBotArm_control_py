@@ -224,6 +224,7 @@ def main():
 
         q_last = joint_traj[-1].q.copy()
         viz.update(q_last)
+        q = q_last.copy()
 
     viz.neutral()
     print("\n完成。")
