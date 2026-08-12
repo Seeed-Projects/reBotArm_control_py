@@ -25,7 +25,7 @@ from reBotArm_control_py.controllers import RebotArmEndPose
 
 def main() -> None:
     rebotarm = RebotArm()
-    ctrl = RebotArmEndPose(rebotarm, arm_control_mode="mit")
+    ctrl = RebotArmEndPose(rebotarm)
 
     ctrl.start()
     print("--- 已启动末端位置控制器 ---\n")

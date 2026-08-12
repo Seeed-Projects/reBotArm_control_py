@@ -113,6 +113,7 @@ def load_cfg(hw_yaml: str | None = None) -> dict:
         "rate": float(data.get("rate", 500.0)),
         "groups": data.get("groups", {}),
         "joints": joints,
+        "arm_control_mode": str(data.get("arm_control_mode", "posvel")),
     }
 
 
@@ -484,6 +485,7 @@ class RebotArm:
         self._rate: float = cfg["rate"]
         self._all_joints: List[JointCfg] = cfg["joints"]
         self._groups_def: dict = cfg["groups"]
+        self._arm_control_mode: str = cfg.get("arm_control_mode", "posvel")
 
         self._ctrl_map: Dict[str, Controller] = {}
         self._motor_map: Dict[str, any] = {}
@@ -569,6 +571,11 @@ class RebotArm:
     @property
     def has_gripper(self) -> bool:
         return not isinstance(self._groups.get("gripper", None), NoOpGroup)
+
+    @property
+    def arm_control_mode(self) -> str:
+        """从硬件配置文件读取的默认 arm 控制模式（"mit" 或 "posvel"）。"""
+        return self._arm_control_mode
 
     @property
     def hardware_yaml(self) -> str:

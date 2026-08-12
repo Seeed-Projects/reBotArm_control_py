@@ -80,9 +80,11 @@ class RebotArmEndPose:
         rebotarm: RebotArm,
         dt: float = 0.01,
         profile: TrajProfile = TrajProfile.MIN_JERK,
-        arm_control_mode: str = "posvel",
+        arm_control_mode: str | None = None,
         use_gravity_ff: bool = True,
     ) -> None:
+        if arm_control_mode is None:
+            arm_control_mode = rebotarm.arm_control_mode
         if arm_control_mode not in ("mit", "posvel"):
             raise ValueError("arm_control_mode must be 'mit' or 'posvel'")
         self._arm_control_mode = arm_control_mode

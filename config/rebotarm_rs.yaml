@@ -21,6 +21,9 @@
 
 urdf_path: "urdf/00-arm-rs_asm-v3/urdf/00-arm-rs_asm-v3.urdf"
 end_effector_frame: "gripper_end"
+# arm 默认控制模式（仅影响 example/7 和 8 中 RebotArmEndPose 的默认值，显式传入 arm_control_mode 参数时覆盖）
+# Default arm control mode (only affects RebotArmEndPose examples 7 & 8; overridden by explicit arm_control_mode argument)
+arm_control_mode: "mit"
 
 channel: can0
 rate: 500
