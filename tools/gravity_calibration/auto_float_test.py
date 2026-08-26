@@ -32,7 +32,7 @@ import numpy as np
 import pinocchio as pin
 from motorbridge import Controller, Mode
 
-VENDOR_URDF = str(Path(__file__).resolve().parents[2] / "urdf/00-arm-rs_asm-v3/urdf/00-arm-rs_asm-v3.urdf")
+VENDOR_URDF = str(Path(__file__).resolve().parents[2] / "urdf/RS/urdf/ReBot_Arm_RS.urdf")
 PR3_MASSES = {2: 1.552, 3: 1.252, 4: 0.46, 5: 0.20120457182895, 6: 0.1}  # link idx -> kg
 
 MECH_POS, MECH_VEL = 0x7019, 0x701A

@@ -183,6 +183,66 @@ def gravity_compensation_controller(r: RebotArm, dt: float) -> None:
 gravity_compensation_controller._counter = 0
 
 
+def _safe_home(
+    r: RebotArm,
+    max_vel: float = 0.5,
+    send_freq: float = 50.0,
+    settle: float = 0.5,
+    timeout: float = 15.0,
+) -> None:
+    """Minimum-jerk 归零 + 重力前馈（内联安全退出）."""
+    _init_models()
+    n = r.arm.num_joints
+    q_hold = r.arm.get_positions().copy()
+    home = np.zeros(n)
+    kp = np.full(n, _KP)
+    kd = np.full(n, _KD)
+
+    # Hold current position briefly to stabilize before moving.
+    q_full = pad_q_for_model(_kin_model, q_hold, controlled_joints=n)
+    tau_hold = compute_generalized_gravity(q=q_full)[:n]
+    r.arm.send_mit(q_hold, vel=np.zeros(n), kp=kp, kd=kd, tau=tau_hold)
+    if r.has_gripper:
+        r.gripper.send_mit(r.gripper.get_positions())
+    time.sleep(0.3)
+
+    q_err = np.abs(home - q_hold)
+    max_err = float(np.max(q_err))
+    if max_err < 0.01:
+        return
+
+    t_ramp = max_err / max_vel
+    t_total = t_ramp * 2.0
+    dt_send = 1.0 / send_freq
+    num_steps = max(2, int(t_total / dt_send))
+    interval = t_total / num_steps
+
+    deadline = time.monotonic() + timeout
+    print(
+        f"[safe_home] 归零轨迹 / homing: "
+        f"{num_steps} steps @ {send_freq:.0f} Hz, {t_total:.1f}s"
+    )
+    for i in range(num_steps):
+        if time.monotonic() > deadline:
+            print("[safe_home] 超时 / timeout")
+            break
+        s = (i + 1) / num_steps
+        # Minimum-jerk: q(s) = q0 + Δq * (10s³ - 15s⁴ + 6s⁵)
+        q_traj = q_hold + (home - q_hold) * (
+            10.0 * s ** 3 - 15.0 * s ** 4 + 6.0 * s ** 5
+        )
+        q_full = pad_q_for_model(_kin_model, q_traj, controlled_joints=n)
+        tau_traj = compute_generalized_gravity(q=q_full)[:n]
+        r.arm.send_mit(q_traj, vel=np.zeros(n), kp=kp, kd=kd, tau=tau_traj)
+        if r.has_gripper:
+            r.gripper.send_mit(r.gripper.get_positions())
+        time.sleep(interval)
+
+    # Settle at zero before cutting power.
+    r.arm.send_mit(home, vel=np.zeros(n), kp=kp, kd=kd, tau=np.zeros(n))
+    time.sleep(settle)
+
+
 def main() -> None:
     global _q_target
 
@@ -227,8 +287,10 @@ def main() -> None:
             time.sleep(0.01)
     finally:
         print("\n[停止 / Stopping] 关闭控制循环... / Closing control loop...")
+        rebotarm.stop_control_loop()
+        _safe_home(rebotarm)
         rebotarm.disconnect()
-        print("[完成 / Done] 已安全断开连接 / Safely disconnected")
+        print("[完成 / Done] 已安全归零并断开连接 / Safely homed and disconnected")
 
 
 if __name__ == "__main__":

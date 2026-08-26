@@ -27,7 +27,7 @@ import numpy as np
 import pinocchio as pin
 from motorbridge import Controller, Mode
 
-VENDOR_URDF = str(Path(__file__).resolve().parents[2] / "urdf/00-arm-rs_asm-v3/urdf/00-arm-rs_asm-v3.urdf")
+VENDOR_URDF = str(Path(__file__).resolve().parents[2] / "urdf/RS/urdf/ReBot_Arm_RS.urdf")
 MECH_POS, MECH_VEL = 0x7019, 0x701A
 MODELS = ["rs-06", "rs-06", "rs-06", "rs-00", "rs-00", "rs-00"]
 JOINTS = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"]

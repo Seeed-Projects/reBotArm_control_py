@@ -46,6 +46,15 @@ ENABLED_JOINTS: list[str] = []
 # ENABLED_JOINTS: list[str] = ["joint1"]      # 单电机测试 / single-motor test
 # ENABLED_JOINTS: list[str] = ["joint1", "joint2"]  # 双电机测试 / two-motor test
 
+# ── 重力补偿参数 ──────────────────────────────────────────────────────────────────
+# TAU_SCALE: 每关节重力补偿力矩缩放系数（与 ROS 包 rebotarm_hardware.yaml 对齐）
+# TRANSITION_DURATION: 从刚性保持增益淡入到柔顺增益的时间（秒）
+# ────────────────────────────────────────────────────────────────────────────────
+
+# Gravity compensation params (aligned with ROS package rebotarm_hardware.yaml)
+TAU_SCALE: list[float] = [1.0, 0.9, 0.98, 1.0, 1.0, 1.0]
+TRANSITION_DURATION: float = 0.5
+
 _running = True
 
 
@@ -75,6 +84,10 @@ def main() -> None:
     rebotarm = RebotArm()
     ctrl = GravityCompensation(
         rebotarm,
+        kp=15.0,
+        kd=2.5,
+        tau_scale=TAU_SCALE,
+        transition_duration=TRANSITION_DURATION,
         enabled_joints=ENABLED_JOINTS,
         log_every=20,
     )
@@ -90,7 +103,10 @@ def main() -> None:
     finally:
         print("\n[停止 / Stopping] 关闭控制循环... / Closing control loop...")
         ctrl.end()
-        print("[完成 / Done] 已安全断开连接 / Safely disconnected")
+        print("[归零 / Safe home] 最小jerk轨迹归零... / Minimum-jerk homing...")
+        ctrl.safe_home()
+        rebotarm.disconnect()
+        print("[完成 / Done] 已安全归零并断开连接 / Safely homed and disconnected")
 
 
 if __name__ == "__main__":
