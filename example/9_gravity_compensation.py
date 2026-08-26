@@ -29,7 +29,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from reBotArm_control_py.actuator import RebotArm
+from reBotArm_control_py.actuator import (
+    RebotArm,
+    load_gravity_compensation_config,
+)
 from reBotArm_control_py.controllers import GravityCompensation
 from reBotArm_control_py.dynamics import (
     load_dynamics_model,
@@ -45,15 +48,6 @@ from reBotArm_control_py.dynamics import (
 ENABLED_JOINTS: list[str] = []
 # ENABLED_JOINTS: list[str] = ["joint1"]      # 单电机测试 / single-motor test
 # ENABLED_JOINTS: list[str] = ["joint1", "joint2"]  # 双电机测试 / two-motor test
-
-# ── 重力补偿参数 ──────────────────────────────────────────────────────────────────
-# TAU_SCALE: 每关节重力补偿力矩缩放系数（与 ROS 包 rebotarm_hardware.yaml 对齐）
-# TRANSITION_DURATION: 从刚性保持增益淡入到柔顺增益的时间（秒）
-# ────────────────────────────────────────────────────────────────────────────────
-
-# Gravity compensation params (aligned with ROS package rebotarm_hardware.yaml)
-TAU_SCALE: list[float] = [1.0, 0.9, 0.98, 1.0, 1.0, 1.0]
-TRANSITION_DURATION: float = 0.5
 
 _running = True
 
@@ -81,15 +75,20 @@ def main() -> None:
     print(f"\n[模型 / Model] nq={model.nq}, nv={model.nv}")
     print(f"[重力 / Gravity] {g_vec}  m/s²")
 
+    gravity_cfg = load_gravity_compensation_config("basic")
+    print(f"[重补配置 / Gravity profile] basic: {gravity_cfg}")
+
     rebotarm = RebotArm()
     ctrl = GravityCompensation(
         rebotarm,
-        kp=15.0,
-        kd=2.5,
-        tau_scale=TAU_SCALE,
-        transition_duration=TRANSITION_DURATION,
+        kp=float(gravity_cfg.get("kp", 15.0)),
+        kd=float(gravity_cfg.get("kd", 2.5)),
+        tau_scale=gravity_cfg.get("tau_scale", 1.0),
+        transition_duration=float(
+            gravity_cfg.get("transition_duration", 0.5)
+        ),
         enabled_joints=ENABLED_JOINTS,
-        log_every=20,
+        log_every=int(gravity_cfg.get("log_every", 20)),
     )
     ctrl.start()
     print(f"[控制循环 / Control loop] 启动 @ {rebotarm.rate} Hz")

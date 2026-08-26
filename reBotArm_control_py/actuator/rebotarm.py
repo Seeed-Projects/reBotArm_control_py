@@ -117,6 +117,56 @@ def load_cfg(hw_yaml: str | None = None) -> dict:
     }
 
 
+def load_gravity_compensation_config(
+    profile: str,
+    hw_yaml: str | None = None,
+) -> dict:
+    """Load one gravity-compensation profile from the active hardware YAML.
+
+    Profile values override the legacy/default keys directly under
+    ``gravity_compensation``. Hardware YAML files without ``profiles`` remain
+    compatible and return their legacy/default gravity-compensation mapping.
+    """
+    hw_path = _resolve_hw_cfg_path(hw_yaml)
+    with open(hw_path, "r") as f:
+        data = yaml.safe_load(f) or {}
+
+    gravity_cfg = data.get("gravity_compensation", {}) or {}
+    if not isinstance(gravity_cfg, dict):
+        raise TypeError("gravity_compensation must be a mapping")
+
+    profiles = gravity_cfg.get("profiles", {}) or {}
+    if not isinstance(profiles, dict):
+        raise TypeError("gravity_compensation.profiles must be a mapping")
+
+    if not profiles:
+        return {
+            key: value
+            for key, value in gravity_cfg.items()
+            if key != "profiles"
+        }
+    if profile not in profiles:
+        available = ", ".join(sorted(str(name) for name in profiles))
+        raise KeyError(
+            f"Unknown gravity-compensation profile {profile!r}; "
+            f"available: {available}"
+        )
+
+    profile_cfg = profiles[profile]
+    if not isinstance(profile_cfg, dict):
+        raise TypeError(
+            f"gravity_compensation.profiles.{profile} must be a mapping"
+        )
+
+    merged = {
+        key: value
+        for key, value in gravity_cfg.items()
+        if key != "profiles"
+    }
+    merged.update(profile_cfg)
+    return merged
+
+
 # --------------------------------------------------------------------------
 # NoOpGroup — 无执行器时的空操作桩
 # --------------------------------------------------------------------------

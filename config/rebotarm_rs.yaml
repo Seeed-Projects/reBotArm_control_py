@@ -134,11 +134,34 @@ joints:
       vlim: 5.0
 
 gravity_compensation:
-  # Compliant gains (MIT position-loop stiffness used during gravity comp).
+  # Legacy/default values kept for existing consumers.
   kp: 1.5
   kd: 1.0
-  # Per-joint gravity torque scaling factor to correct model-vs-hardware bias.
-  tau_scale: [1.0, 0.9, 0.98, 1.0, 1.0, 1.0]
-  # Fade from stiff hold gains to compliant gains without a sudden
-  # loss of stiffness at gravity-compensation startup (seconds).
+  tau_scale: [1.0, 0.98, 0.98, 1.0, 1.0, 1.0]
   transition_duration: 0.5
+
+  # Example 9: compliant gravity compensation.
+  profiles:
+    basic:
+      kp: 15.0
+      kd: 2.5
+      tau_scale: [1.0, 0.98, 0.98, 1.0, 1.0, 1.0]
+      transition_duration: 0.5
+      log_every: 20
+
+    # Example 10: gravity compensation with EE velocity lock.
+    velocity_lock:
+      kp: 8.0
+      kd: 1.0
+      ki: 1.0
+      integral_limit: 0.3
+      tau_scale: [1.0, 0.98, 0.98, 1.0, 1.0, 1.0]
+      transition_duration: 0.5
+      linear_release_threshold: 0.04
+      angular_release_threshold: 0.08
+      linear_lock_threshold: 0.02
+      angular_lock_threshold: 0.04
+      lock_settle_duration: 0.15
+      velocity_filter_time_constant: 0.03
+      max_valid_sample_dt: 0.1
+      log_every: 20
