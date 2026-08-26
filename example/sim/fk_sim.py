@@ -38,33 +38,38 @@ def main():
 
     print("加载可视化器...")
     viz = Visualizer()
+    n_arm = 6
     q = np.zeros(viz.nq)
     viz.update(q)
 
-    print("MeshCat 已打开. 输入 6 个关节角度（度）:")
+    print("MeshCat 已打开. 输入 6 个 arm 关节角度（度）:")
     print("  q/quit/exit: 退出\n")
 
     while not should_exit:
         time.sleep(0.01)
 
         try:
-            line = input("关节角度 > ").strip().lower()
-        except EOFError:
+            line = input("关节角度 > ").split("#", 1)[0].strip().lower()
+        except (EOFError, KeyboardInterrupt):
             break
 
-        if line in ("q", "quit", "exit", ""):
+        if line in ("q", "quit", "exit"):
             break
+
+        if not line:
+            continue
 
         try:
             q_deg = [float(x) for x in line.split()]
-            if len(q_deg) != viz.nq:
-                print(f"需要 {viz.nq} 个值\n")
+            if len(q_deg) != n_arm:
+                print(f"需要 {n_arm} 个值（夹爪在仿真中保持 0）\n")
                 continue
         except ValueError:
             print("无效输入\n")
             continue
 
-        q = np.radians(q_deg)
+        q = np.zeros(viz.nq)
+        q[:n_arm] = np.radians(q_deg)
         viz.update(q)
 
         pos, rot, _ = compute_fk(viz.model, q)
