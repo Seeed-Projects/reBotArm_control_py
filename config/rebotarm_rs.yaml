@@ -19,7 +19,7 @@
 
 # Kinematics config (URDF path, end-effector frame)
 
-urdf_path: "urdf/00-arm-rs_asm-v3/urdf/00-arm-rs_asm-v3.urdf"
+urdf_path: "urdf/RS/urdf/ReBot_Arm_RS.urdf"
 end_effector_frame: "gripper_end"
 # arm 默认控制模式（仅影响 example/7 和 8 中 RebotArmEndPose 的默认值，显式传入 arm_control_mode 参数时覆盖）
 # Default arm control mode (only affects RebotArmEndPose examples 7 & 8; overridden by explicit arm_control_mode argument)
@@ -132,3 +132,36 @@ joints:
       vel_ki: 0.1
       pos_kp: 10.0
       vlim: 5.0
+
+gravity_compensation:
+  # Legacy/default values kept for existing consumers.
+  kp: 1.5
+  kd: 1.0
+  tau_scale: [1.0, 0.98, 0.98, 1.0, 1.0, 1.0]
+  transition_duration: 0.5
+
+  # Example 9: compliant gravity compensation.
+  profiles:
+    basic:
+      kp: 15.0
+      kd: 2.5
+      tau_scale: [1.0, 0.98, 0.98, 1.0, 1.0, 1.0]
+      transition_duration: 0.5
+      log_every: 20
+
+    # Example 10: gravity compensation with EE velocity lock.
+    velocity_lock:
+      kp: 8.0
+      kd: 1.0
+      ki: 1.0
+      integral_limit: 0.3
+      tau_scale: [1.0, 0.98, 0.98, 1.0, 1.0, 1.0]
+      transition_duration: 0.5
+      linear_release_threshold: 0.04
+      angular_release_threshold: 0.08
+      linear_lock_threshold: 0.02
+      angular_lock_threshold: 0.04
+      lock_settle_duration: 0.15
+      velocity_filter_time_constant: 0.03
+      max_valid_sample_dt: 0.1
+      log_every: 20

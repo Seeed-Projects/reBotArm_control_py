@@ -50,13 +50,13 @@ class Visualizer:
             open_browser: 是否在终端打印 MeshCat 访问地址。
             urdf_path:    URDF 文件路径，留空则从 hardware_yaml 指向的硬件配置文件中读取。
         """
-        urdf_path, pkg_dir = _resolve_urdf(urdf_path)
+        urdf_path, package_dirs = _resolve_urdf(urdf_path)
 
         self._model = pin.buildModelFromUrdf(urdf_path)
         self._data = self._model.createData()
 
         self._visual_model = pin.buildGeomFromUrdf(
-            self._model, urdf_path, pin.GeometryType.VISUAL, package_dirs=[pkg_dir]
+            self._model, urdf_path, pin.GeometryType.VISUAL, package_dirs=package_dirs
         )
         self._visual_data = self._visual_model.createData()
 

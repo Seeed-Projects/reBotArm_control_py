@@ -26,7 +26,7 @@ ap.add_argument("files", nargs="+", help="pdsweep_*.json (globs ok)")
 ap.add_argument("--qmin", type=float, default=None,
                 help="drop samples with active-joint q below this (contact region)")
 ap.add_argument("--urdf", default=str(Path(__file__).resolve().parents[2]
-                                       / "urdf/00-arm-rs_asm-v3/urdf/00-arm-rs_asm-v3.urdf"))
+                                       / "urdf/RS/urdf/ReBot_Arm_RS.urdf"))
 ap.add_argument("--off-max", type=float, default=0.3, help="offset grid half-width [rad]")
 args = ap.parse_args()
 

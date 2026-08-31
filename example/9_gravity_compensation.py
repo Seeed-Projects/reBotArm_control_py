@@ -29,7 +29,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from reBotArm_control_py.actuator import RebotArm
+from reBotArm_control_py.actuator import (
+    RebotArm,
+    load_gravity_compensation_config,
+)
 from reBotArm_control_py.controllers import GravityCompensation
 from reBotArm_control_py.dynamics import (
     load_dynamics_model,
@@ -72,11 +75,20 @@ def main() -> None:
     print(f"\n[模型 / Model] nq={model.nq}, nv={model.nv}")
     print(f"[重力 / Gravity] {g_vec}  m/s²")
 
+    gravity_cfg = load_gravity_compensation_config("basic")
+    print(f"[重补配置 / Gravity profile] basic: {gravity_cfg}")
+
     rebotarm = RebotArm()
     ctrl = GravityCompensation(
         rebotarm,
+        kp=float(gravity_cfg.get("kp", 15.0)),
+        kd=float(gravity_cfg.get("kd", 2.5)),
+        tau_scale=gravity_cfg.get("tau_scale", 1.0),
+        transition_duration=float(
+            gravity_cfg.get("transition_duration", 0.5)
+        ),
         enabled_joints=ENABLED_JOINTS,
-        log_every=20,
+        log_every=int(gravity_cfg.get("log_every", 20)),
     )
     ctrl.start()
     print(f"[控制循环 / Control loop] 启动 @ {rebotarm.rate} Hz")
@@ -90,7 +102,10 @@ def main() -> None:
     finally:
         print("\n[停止 / Stopping] 关闭控制循环... / Closing control loop...")
         ctrl.end()
-        print("[完成 / Done] 已安全断开连接 / Safely disconnected")
+        print("[归零 / Safe home] 最小jerk轨迹归零... / Minimum-jerk homing...")
+        ctrl.safe_home()
+        rebotarm.disconnect()
+        print("[完成 / Done] 已安全归零并断开连接 / Safely homed and disconnected")
 
 
 if __name__ == "__main__":

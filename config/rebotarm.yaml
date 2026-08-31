@@ -4,4 +4,4 @@
 # reBotArm global config
 # Hardware config (motor type, comm params, PID, etc.)
 
-hardware_yaml: "rebotarm_dm.yaml"
+hardware_yaml: "rebotarm_rs.yaml"
