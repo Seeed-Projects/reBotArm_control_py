@@ -1,7 +1,7 @@
 """reBot-DevArm 逆运动学模块。
 
-基于阻尼最小二乘（CLIK）的闭环逆运动学算法，
-与 C++ 实现严格对齐：雅可比矩阵计算、自适应阻尼、回退线搜索。
+基于阻尼最小二乘（CLIK）的闭环逆运动学算法，包含关节限位活动约束、
+自适应阻尼和回退线搜索。
 """
 
 from __future__ import annotations
@@ -70,14 +70,12 @@ def pos_rot_to_se3(
 def _clamp_config(model: pin.Model, q: np.ndarray) -> np.ndarray:
     """将 q 限制在关节限位范围内。
 
-    NaN 限位默认用 0，防止 integrate 后出现 NaN。
+    非有限下限/上限分别视为无下限/无上限。
     """
-    lo = np.array([
-        float(x) if np.isfinite(x) else 0.0 for x in model.lowerPositionLimit
-    ])
-    hi = np.array([
-        float(x) if np.isfinite(x) else 0.0 for x in model.upperPositionLimit
-    ])
+    lo = np.where(np.isfinite(model.lowerPositionLimit),
+                  model.lowerPositionLimit, -np.inf)
+    hi = np.where(np.isfinite(model.upperPositionLimit),
+                  model.upperPositionLimit, np.inf)
     clamped = np.maximum(q, lo)
     clamped = np.minimum(clamped, hi)
     return clamped
@@ -89,17 +87,75 @@ def _compute_error(
     end_frame_id: int,
     q: np.ndarray,
     target: pin.SE3,
+    position_only: bool = False,
 ) -> tuple[float, np.ndarray]:
-    """计算当前末端位姿与目标位姿之间的 6 维误差 twist。
+    """计算当前末端与目标之间的局部坐标系误差。
 
     返回:
-        (err_norm, err_vector)
+        ``(err_norm, err_vector)``。仅位置模式返回 3 维线位移误差，
+        完整位姿模式返回 6 维 twist。
     """
     pin.forwardKinematics(model, data, q)
     pin.updateFramePlacements(model, data)
     T_cur = data.oMf[end_frame_id]
-    err = pin.log6(T_cur.inverse() * target).vector
+    if position_only:
+        # LOCAL 雅可比的线速度部分在末端局部坐标系中表达，因此位置
+        # 误差也要从世界坐标系旋转到该坐标系中。
+        err = T_cur.rotation.T @ (target.translation - T_cur.translation)
+    else:
+        err = pin.log6(T_cur.inverse() * target).vector
     return float(np.linalg.norm(err)), err
+
+
+def _damped_step_with_active_limits(
+    model: pin.Model,
+    q: np.ndarray,
+    J: np.ndarray,
+    err: np.ndarray,
+    damping: float,
+    step_size: float,
+) -> np.ndarray:
+    """计算阻尼最小二乘步，并把已到限位且继续向外的关节设为活动约束。
+
+    直接在求解后裁剪配置会破坏各关节速度之间的配合：一个关节被裁掉后，
+    剩余关节的原始速度通常已经不是下降方向。这里移除被阻塞的雅可比列并
+    重新求解，使位于限位上的初始构型也能离开奇异/边界位置。
+    """
+    free = np.ones(model.nv, dtype=bool)
+    limit_eps = 1e-10
+    dq = np.zeros(model.nv)
+
+    for _ in range(model.nv + 1):
+        J_free = J[:, free]
+        dq.fill(0.0)
+        if J_free.shape[1] == 0:
+            return dq
+
+        system = J_free @ J_free.T
+        system.flat[::system.shape[0] + 1] += damping
+        dq[free] = step_size * J_free.T @ np.linalg.solve(system, err)
+
+        newly_blocked = np.zeros(model.nv, dtype=bool)
+        # Pinocchio 的一般配置可能 nq != nv。当前机器人均为一维关节；
+        # 对其它类型不臆造 q/v 映射，仍由后续配置裁剪保证限位安全。
+        for joint in model.joints[1:]:
+            if joint.nq != 1 or joint.nv != 1:
+                continue
+            iq = joint.idx_q
+            iv = joint.idx_v
+            lo = model.lowerPositionLimit[iq]
+            hi = model.upperPositionLimit[iq]
+            at_lower = np.isfinite(lo) and q[iq] <= lo + limit_eps
+            at_upper = np.isfinite(hi) and q[iq] >= hi - limit_eps
+            if (at_lower and dq[iv] < 0.0) or (at_upper and dq[iv] > 0.0):
+                newly_blocked[iv] = True
+
+        newly_blocked &= free
+        if not np.any(newly_blocked):
+            return dq
+        free[newly_blocked] = False
+
+    return dq
 
 
 # ─── 核心求解器 ────────────────────────────────────────────────────────────────
@@ -112,12 +168,14 @@ def solve_ik(
     q_init: np.ndarray,
     params: Optional[IKParams] = None,
     controlled_joints: int | None = None,
+    *,
+    position_only: bool = False,
 ) -> IKResult:
     """阻尼最小二乘 CLIK 求解器。
 
       - LOCAL 坐标系雅可比
       - 自适应阻尼 lam = params.damping * max(1.0, prev_err * 10.0)
-      - 回退线搜索（最多折半 4 次）
+      - 回退线搜索（最多折半 8 次）
 
     参数:
         model:            Pinocchio 机器人模型。
@@ -131,6 +189,7 @@ def solve_ik(
                           传入比 model.nq 小的值时，IK 在完整模型空间求解，
                           但 q_init 只需提供受控关节数，返回值也只截取受控部分。
                           这使得调用方无需感知 URDF 中被动关节的存在。
+        position_only:     为 True 时只约束末端位置，不约束姿态。
 
     返回:
         IKResult，其中 q 为求解得到的关节角（维度与 q_init 一致）。
@@ -145,7 +204,9 @@ def solve_ik(
     q = np.zeros(nq)
     n_provided = min(q_init.shape[0], n_ctrl)
     q[:n_provided] = q_init[:n_provided]
-    prev_err, err = _compute_error(model, data, end_frame_id, q, target)
+    prev_err, err = _compute_error(
+        model, data, end_frame_id, q, target, position_only,
+    )
 
     # 初始误差即已满足容差时直接返回
     if prev_err < params.tolerance:
@@ -156,29 +217,47 @@ def solve_ik(
         # LOCAL 系体雅可比
         pin.computeJointJacobians(model, data, q)
         J = pin.getFrameJacobian(model, data, end_frame_id, pin.LOCAL)
+        if position_only:
+            J = J[:3, :]
 
-        # 自适应阻尼：误差越大阻尼越小（Levenberg-Marquardt 风格）
+        # 自适应阻尼：误差较大时适当增加阻尼（Levenberg-Marquardt 风格）
         lam = params.damping * max(1.0, prev_err * 10.0)
 
-        # 阻尼最小二乘 dq = step_size * J^T * (J J^T + λI)^{-1} * err
-        JJT = J @ J.T
-        JJT[np.arange(JJT.shape[0]), np.arange(JJT.shape[1])] += lam
-        dq = params.step_size * J.T @ np.linalg.solve(JJT, err)
+        # 带活动限位约束的阻尼最小二乘。
+        dq = _damped_step_with_active_limits(
+            model, q, J, err, lam, params.step_size,
+        )
 
-        # 回退线搜索：若新误差未减小则缩步，最多折半 4 次
+        if float(np.linalg.norm(dq)) < 1e-12:
+            return IKResult(
+                q=q[:n_ctrl], success=False, error=prev_err,
+                iterations=iteration,
+            )
+
+        # 回退线搜索：若新误差未减小则缩步，最多折半 8 次
         alpha = 1.0
-        for _ in range(4):
+        for _ in range(8):
             q_new = _clamp_config(model, pin.integrate(model, q, alpha * dq))
-            new_err, err_new = _compute_error(model, data, end_frame_id, q_new, target)
+            new_err, err_new = _compute_error(
+                model, data, end_frame_id, q_new, target, position_only,
+            )
             if new_err < prev_err:
                 q = q_new
                 err = err_new
                 prev_err = new_err
+                if prev_err < params.tolerance:
+                    return IKResult(
+                        q=q[:n_ctrl], success=True, error=prev_err,
+                        iterations=iteration + 1,
+                    )
                 break
             alpha *= 0.5
         else:
-            # 线搜索全部失败，保持当前构型继续迭代
-            pass
+            # 当前活动约束下已找不到下降步，继续相同迭代不会改变结果。
+            return IKResult(
+                q=q[:n_ctrl], success=False, error=prev_err,
+                iterations=iteration + 1,
+            )
 
     # 循环结束后再次检查（可能刚收敛或误差已达机器精度）
     if prev_err < params.tolerance:
@@ -252,6 +331,7 @@ def compute_ik(
     pitch: float = 0.0,
     yaw: float = 0.0,
     params: IKSolverParams | None = None,
+    position_only: bool | None = None,
 ) -> IKResult:
     """使用默认模型计算 IK（便捷函数）。
 
@@ -263,6 +343,9 @@ def compute_ik(
         pitch:       ZYX 欧拉角之 pitch。
         yaw:         ZYX 欧拉角之 yaw。
         params:      IK 参数。
+        position_only: 是否只求位置。默认自动判断：未提供旋转矩阵且 RPY
+                       全为零时按仅位置处理；如需显式约束单位姿态，请传入
+                       ``target_rot=np.eye(3)`` 或 ``position_only=False``。
 
     返回:
         IKResult。
@@ -274,7 +357,18 @@ def compute_ik(
     frame_id = get_end_effector_frame_id(model)
     target = pos_rot_to_se3(target_pos, target_rot, roll, pitch, yaw)
 
+    if position_only is None:
+        position_only = (
+            target_rot is None
+            and roll == 0.0
+            and pitch == 0.0
+            and yaw == 0.0
+        )
+
     if q_init is None:
         q_init = pin.neutral(model)
 
-    return solve_ik(model, data, frame_id, target, q_init, params)
+    return solve_ik(
+        model, data, frame_id, target, q_init, params,
+        position_only=position_only,
+    )
