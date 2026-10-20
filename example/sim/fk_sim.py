@@ -21,7 +21,7 @@ import pinocchio as pin
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from reBotArm_control_py.kinematics import compute_fk
+from reBotArm_control_py.kinematics import compute_fk, get_arm_joint_count, pad_q_for_model
 from example.sim.visualizer import Visualizer
 
 should_exit = False
@@ -38,11 +38,11 @@ def main():
 
     print("加载可视化器...")
     viz = Visualizer()
-    n_arm = 6
-    q = np.zeros(viz.nq)
+    n_arm = get_arm_joint_count(viz.model)
+    q = pin.neutral(viz.model)
     viz.update(q)
 
-    print("MeshCat 已打开. 输入 6 个 arm 关节角度（度）:")
+    print(f"MeshCat 已打开. 输入 {n_arm} 个 arm 关节角度（度），夹指位移保持 0 米:")
     print("  q/quit/exit: 退出\n")
 
     while not should_exit:
@@ -68,8 +68,10 @@ def main():
             print("无效输入\n")
             continue
 
-        q = np.zeros(viz.nq)
-        q[:n_arm] = np.radians(q_deg)
+        if not np.all(np.isfinite(q_deg)):
+            print("输入必须是有限数字\n")
+            continue
+        q = pad_q_for_model(viz.model, np.radians(q_deg), n_arm)
         viz.update(q)
 
         pos, rot, _ = compute_fk(viz.model, q)

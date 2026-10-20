@@ -29,6 +29,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from reBotArm_control_py.kinematics import (
     compute_fk,
     get_end_effector_frame_id,
+    get_arm_joint_count,
+    pad_q_for_model,
 )
 from reBotArm_control_py.trajectory import (
     plan_cartesian_geodesic_trajectory,
@@ -57,8 +59,10 @@ def make_pose(x: float, y: float, z: float,
 def _solve_ik(model, end_frame_id, target, q_init, ik_params):
     from reBotArm_control_py.kinematics.inverse_kinematics import solve_ik
     data = model.createData()
-    result = solve_ik(model, data, end_frame_id, target, q_init, ik_params)
-    return result.q, result.success
+    n_arm = get_arm_joint_count(model, end_frame_id)
+    result = solve_ik(model, data, end_frame_id, target, q_init, ik_params,
+                      controlled_joints=n_arm)
+    return pad_q_for_model(model, result.q, n_arm), result.success
 
 
 def run_trajectory(viz, model, end_frame_id, q_start, q_end,
@@ -71,10 +75,12 @@ def run_trajectory(viz, model, end_frame_id, q_start, q_end,
     ik_params = IKParams(max_iter=200, tolerance=1e-4, damping=1e-6, step_size=0.8)
 
     cart_result = plan_cartesian_geodesic_trajectory(T_start, T_end, duration, params)
+    n_arm = get_arm_joint_count(model, end_frame_id)
 
     elapsed = time.time()
     joint_traj = track_trajectory(
-        model, end_frame_id, cart_result.trajectory, q_start, ik_params, null_gain
+        model, end_frame_id, cart_result.trajectory, q_start, ik_params, null_gain,
+        controlled_joints=n_arm,
     )
     elapsed = (time.time() - elapsed) * 1000.0
 
@@ -108,7 +114,7 @@ def run_trajectory(viz, model, end_frame_id, q_start, q_end,
     print(f"\n{'='*60}")
     print(f"  轨迹: {profile.value}  耗时={elapsed:.1f}ms  点数={len(joint_traj)}")
     print(f"  时长={duration:.2f}s  dt={dt}s  零空间={null_gain}")
-    print(f"  关节: {np.degrees(q_start).round(1).tolist()} → {np.degrees(q_end).round(1).tolist()}")
+    print(f"  机械臂角度 (deg): {np.degrees(q_start[:n_arm]).round(1).tolist()} → {np.degrees(q_end[:n_arm]).round(1).tolist()}")
     print(f"{'='*60}")
     print(f"  IK 成功率: {stats.success_rate:.1%}  "
           f"最大误差: {stats.max_ik_error:.3e}  "
@@ -139,15 +145,15 @@ def run_trajectory(viz, model, end_frame_id, q_start, q_end,
         dt_arr = np.diff(times, axis=0, prepend=times[0])
         qv = np.divide(qv, dt_arr[:, None], where=dt_arr[:, None] > 0,
                        out=np.zeros_like(joint_arr))
-        q_deg = np.degrees(joint_arr)
-        qv_deg = np.degrees(qv)
+        q_deg = np.degrees(joint_arr[:, :n_arm])
+        qv_deg = np.degrees(qv[:, :n_arm])
 
         print(f"\n--- 统计摘要 ---")
         print(f"  关节角度 (deg):")
-        for i in range(joint_arr.shape[1]):
+        for i in range(n_arm):
             print(f"    j{i+1}: [{q_deg[:, i].min():.1f}, {q_deg[:, i].max():.1f}]")
         print(f"  关节速度 (deg/s):")
-        for i in range(joint_arr.shape[1]):
+        for i in range(n_arm):
             print(f"    j{i+1}: [{qv_deg[:, i].min():.1f}, {qv_deg[:, i].max():.1f}]")
         print(f"  笛卡尔误差 (m): avg={cart_errs.mean():.3e}, max={cart_errs.max():.3e}")
 
@@ -162,7 +168,7 @@ def main():
     viz = Visualizer(open_browser=True)
     model = viz.model
     end_frame_id = get_end_effector_frame_id(model)
-    print(f"模型: {model.nq} 关节\n")
+    print(f"模型: nq={model.nq} (URDF), arm={get_arm_joint_count(model, end_frame_id)}；夹指位移保持 0 米\n")
 
     ik_params = IKParams(max_iter=200, tolerance=1e-4, damping=1e-6, step_size=0.8)
     dt = 1.0 / 50.0
@@ -198,6 +204,9 @@ def main():
             print("  格式: x y z [roll pitch yaw]")
             continue
 
+        if len(vals) not in (3, 6) or not np.all(np.isfinite(vals)):
+            print("  格式: x y z [roll pitch yaw]，需要 3 或 6 个有限数字")
+            continue
         x, y, z = vals[0], vals[1], vals[2]
         roll = vals[3] if len(vals) >= 6 else 0.0
         pitch = vals[4] if len(vals) >= 6 else 0.0

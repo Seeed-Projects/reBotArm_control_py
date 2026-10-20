@@ -120,7 +120,7 @@ def compute_traj_stats(
             break
         if pt.ik_success:
             stats.success_count += 1
-        _, _, oMf_h = compute_fk(model, pt.q)
+        _, _, oMf_h = compute_fk(model, pt.q, frame_name=model.frames[end_frame_id].name)
         err_vec = pin.log6(pin.SE3(oMf_h).inverse() * ref_pts[i].pose).vector
         err_norm = float(np.linalg.norm(err_vec))
         stats.max_ik_error = max(stats.max_ik_error, err_norm)

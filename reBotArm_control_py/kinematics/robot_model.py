@@ -87,6 +87,27 @@ def get_end_effector_frame_id(model: pin.Model) -> int:
     return model.getFrameId(get_end_effector_frame())
 
 
+def get_arm_joint_count(model: pin.Model, end_frame_id: int | None = None) -> int:
+    """Count scalar arm joints on the end frame's ancestor chain.
+
+    Finger joints downstream of the end frame are excluded. The examples and
+    solvers use a leading configuration slice, so reject models whose arm
+    chain is not a contiguous scalar prefix rather than selecting other joints.
+    """
+    frame_id = get_end_effector_frame_id(model) if end_frame_id is None else end_frame_id
+    if not isinstance(frame_id, (int, np.integer)) or not 0 <= frame_id < model.nframes:
+        raise ValueError("Invalid end-effector frame index")
+    chain = []
+    joint_id = model.frames[frame_id].parentJoint
+    while joint_id:
+        chain.append(model.joints[joint_id])
+        joint_id = model.parents[joint_id]
+    chain.reverse()
+    if not chain or any(j.nq != 1 or j.nv != 1 or j.idx_q != i or j.idx_v != i
+                        for i, j in enumerate(chain)):
+        raise ValueError("Arm chain must be a contiguous prefix of scalar joints")
+    return len(chain)
+
 def get_all_frame_names(model: pin.Model) -> List[str]:
     return [f.name for f in model.frames]
 

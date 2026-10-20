@@ -25,12 +25,12 @@ import pinocchio as pin
 sys.path.insert(0, str(__file__).rsplit("/", 2)[0])
 
 from reBotArm_control_py.kinematics import (
-    get_joint_count,
+    get_arm_joint_count,
+    get_end_effector_frame_id,
     load_robot_model,
-    compute_ik,
     get_joint_names,
 )
-from reBotArm_control_py.kinematics.inverse_kinematics import IKParams
+from reBotArm_control_py.kinematics.inverse_kinematics import IKParams, pos_rot_to_se3, solve_ik
 
 
 # ----------------------------------------------------------------------
@@ -42,7 +42,9 @@ def print_welcome(model, joint_names) -> None:
     print("  reBotArm 逆运动学测试 / Inverse Kinematics Test")
     print("=" * 52)
     print(f"  机器人 / Robot: {model.name}")
-    print(f"  关节   / Joints: {joint_names}")
+    n = get_arm_joint_count(model)
+    print(f"  机械臂关节 / Arm joints: {joint_names[:n]}")
+    print(f"  nq={model.nq} (URDF), arm={n}; 夹指位移保持 0 米 / fingers stay at 0 m")
     print()
     print("  输入末端期望位姿 / Enter desired end-effector pose:")
     print("    <x> <y> <z>                       (仅位置，米 / position only, meters)")
@@ -75,7 +77,7 @@ def print_result(result, target_pos, target_rot, joint_names, n_joints: int) -> 
 
 
 def parse_pose_input(line: str) -> tuple:
-    tokens = line.split()
+    tokens = line.split("#", 1)[0].split()
     if len(tokens) not in (3, 6):
         print(f"错误: 需要 3 个值（仅位置）或 6 个值（位置+姿态），输入了 {len(tokens)} 个")
         print(f"Error: need 3 values (pos only) or 6 values (pos+ori), got {len(tokens)}")
@@ -87,6 +89,9 @@ def parse_pose_input(line: str) -> tuple:
         print(f"Error: cannot parse number — {e}")
         sys.exit(1)
 
+    if not np.all(np.isfinite(vals)):
+        print("错误: 输入必须是有限数字 / Error: values must be finite numbers")
+        sys.exit(1)
     target_pos = np.array(vals[:3])
     target_rot = None
     if len(vals) == 6:
@@ -102,7 +107,8 @@ def parse_pose_input(line: str) -> tuple:
 def main() -> None:
     model = load_robot_model()
     joint_names = get_joint_names(model)
-    n_joints = get_joint_count()
+    frame_id = get_end_effector_frame_id(model)
+    n_joints = get_arm_joint_count(model, frame_id)
 
     print_welcome(model, joint_names)
 
@@ -114,15 +120,14 @@ def main() -> None:
 
     target_pos, target_rot = parse_pose_input(line)
 
-    q_init = np.zeros(model.nq)
+    q_init = pin.neutral(model)
 
     ik_params = IKParams(max_iter=2000, damping=0.01)
 
-    result = compute_ik(
-        q_init=q_init,
-        target_pos=target_pos,
-        target_rot=target_rot,
-        params=ik_params,
+    result = solve_ik(
+        model, model.createData(), frame_id,
+        pos_rot_to_se3(target_pos, target_rot), q_init, ik_params,
+        controlled_joints=n_joints, position_only=target_rot is None,
     )
 
     print_result(result, target_pos, target_rot, joint_names, n_joints)
