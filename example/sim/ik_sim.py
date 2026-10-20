@@ -22,8 +22,10 @@ import pinocchio as pin
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from reBotArm_control_py.kinematics.inverse_kinematics import compute_ik
-from reBotArm_control_py.kinematics.robot_model import get_end_effector_frame_id
+from reBotArm_control_py.kinematics.inverse_kinematics import pos_rot_to_se3, solve_ik
+from reBotArm_control_py.kinematics.robot_model import (
+    get_end_effector_frame_id, get_arm_joint_count, pad_q_for_model,
+)
 from reBotArm_control_py.kinematics.forward_kinematics import compute_fk
 from example.sim.visualizer import Visualizer
 
@@ -35,6 +37,16 @@ def signal_handler(sig, frame):
     should_exit = True
 
 
+def solve_arm_ik(model, frame_id, q_seed, target_pos, target_rot=None):
+    n_arm = get_arm_joint_count(model, frame_id)
+    result = solve_ik(
+        model, model.createData(), frame_id, pos_rot_to_se3(target_pos, target_rot),
+        q_seed, controlled_joints=n_arm, position_only=target_rot is None,
+    )
+    result.q = pad_q_for_model(model, result.q, n_arm)
+    return result
+
+
 def main():
     signal.signal(signal.SIGINT, signal_handler)
 
@@ -44,11 +56,8 @@ def main():
     viz.neutral()
     q_seed = pin.neutral(viz.model)
 
-    # gripper_end 挂在 joint6 后；只把该关节及其祖先作为机械臂关节显示，
-    # 排除 URDF 中位于末端之后的两个夹爪滑动关节。
-    end_frame = viz.model.frames[get_end_effector_frame_id(viz.model)]
-    end_joint = viz.model.joints[end_frame.parentJoint]
-    arm_nq = end_joint.idx_q + end_joint.nq
+    frame_id = get_end_effector_frame_id(viz.model)
+    arm_nq = get_arm_joint_count(viz.model, frame_id)
 
     print("MeshCat 已打开. 输入目标位姿:")
     print("  x y z                      (仅位置，米)")
@@ -82,7 +91,7 @@ def main():
             r, p, y = vals[3], vals[4], vals[5]
             target_rot = pin.rpy.rpyToMatrix(r, p, y)  # 获取姿态
 
-        result = compute_ik(q_seed, target_pos, target_rot)
+        result = solve_arm_ik(viz.model, frame_id, q_seed, target_pos, target_rot)
 
         if result.success:
             viz.update(result.q)
@@ -107,7 +116,7 @@ def main():
         print(f"  机械臂关节角度(deg): {np.degrees(result.q[:arm_nq])}\n")
 
         if not result.success and target_rot is not None:
-            position_result = compute_ik(q_seed, target_pos)
+            position_result = solve_arm_ik(viz.model, frame_id, q_seed, target_pos)
             if position_result.success:
                 _, reachable_rot, _ = compute_fk(viz.model, position_result.q)
                 reachable_rpy = pin.rpy.matrixToRpy(reachable_rot)

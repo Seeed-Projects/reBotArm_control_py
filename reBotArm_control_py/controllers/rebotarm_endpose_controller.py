@@ -303,6 +303,7 @@ class RebotArmEndPose:
             self._model, self._end_frame_id,
             cart_traj.trajectory, q_start, self._clik_params,
             null_gain=0.1,
+            controlled_joints=self._n,
         )
         if not joint_traj:
             print("[RebotArmEndPose/Traj] 轨迹为空")

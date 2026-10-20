@@ -66,6 +66,7 @@ def track_trajectory(
     q_init: np.ndarray,
     ik_params: IKParams | None = None,
     null_gain: float = 0.0,
+    controlled_joints: int | None = None,
 ) -> List[JointTrajectoryPoint]:
     """用 CLIK（DLS 伪逆 + 零空间投影）跟踪笛卡尔轨迹。
 
@@ -89,6 +90,16 @@ def track_trajectory(
         ik_params = IKParams()
 
     q = q_init.astype(float).copy()
+    n_ctrl = model.nq if controlled_joints is None else controlled_joints
+    if not isinstance(n_ctrl, (int, np.integer)) or not 0 < n_ctrl <= model.nq:
+        raise ValueError("Invalid controlled joint count")
+    if q.shape != (model.nq,) or not np.all(np.isfinite(q)):
+        raise ValueError("q_init must be a finite full model configuration")
+    if any(j.idx_q < n_ctrl < j.idx_q + j.nq for j in model.joints[1:]):
+        raise ValueError("controlled_joints must not split a joint configuration")
+    passive = [i for j in model.joints[1:] if j.idx_q >= n_ctrl
+               for i in range(j.idx_v, j.idx_v + j.nv)]
+    passive_q = q[n_ctrl:].copy()
     data = model.createData()
     J = np.zeros((6, model.nv))
     err = np.zeros(6)
@@ -109,7 +120,8 @@ def track_trajectory(
 
             J = pin.getFrameJacobian(
                 model, data, end_frame_id, pin.ReferenceFrame.LOCAL
-            )
+            ).copy()
+            J[:, passive] = 0.0
             err_norm = np.linalg.norm(err)
             lam = ik_params.damping * max(1.0, err_norm * 10.0)
             JJT = J @ J.T
@@ -118,9 +130,12 @@ def track_trajectory(
 
             if null_gain > 0.0:
                 g = _joint_limit_grad(model, q)
+                g[passive] = 0.0
                 dq += null_gain * (g - J.T @ np.linalg.solve(JJT, J @ g))
 
+            dq[passive] = 0.0
             q = _clamp_config(model, pin.integrate(model, q, dq))
+            q[n_ctrl:] = passive_q
 
         result.append(JointTrajectoryPoint(pt.time, q.copy(), converged))
 

@@ -16,24 +16,34 @@ Input: x y z [roll pitch yaw] [duration]  target end-effector pose (meters / rad
 """
 
 import sys
+import numpy as np
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from reBotArm_control_py.actuator import RebotArm
 from reBotArm_control_py.controllers import RebotArmEndPose
+from reBotArm_control_py.kinematics import joint_to_pose
 
 
 def main() -> None:
     rebotarm = RebotArm()
     ctrl = RebotArmEndPose(rebotarm)
 
-    ctrl.start()
+    try:
+        ctrl.start()
+        interactive(ctrl, rebotarm)
+    finally:
+        ctrl.end()
+    print("\n完成 / Done.")
+
+
+def interactive(ctrl, rebotarm):
     print("--- 已启动末端位置控制器 ---\n")
     print("--- End-effector pose controller started ---\n")
 
     while True:
         try:
-            line = input("> ").strip()
+            line = input("> ").split("#", 1)[0].strip()
         except (EOFError, KeyboardInterrupt):
             break
 
@@ -51,8 +61,7 @@ def main() -> None:
 
         if line.lower() == "end_state":
             q, _, _ = rebotarm.get_state()
-            from reBotArm_control_py.kinematics import joint_to_pose
-            pos, rpy = joint_to_pose(q)
+            pos, rpy = joint_to_pose(q[:rebotarm.arm.num_joints])
             px, py, pz = float(pos[0]), float(pos[1]), float(pos[2])
             rx, ry, rz = float(rpy[0]), float(rpy[1]), float(rpy[2])
             print(f"  pos=[{px:+.3f} {py:+.3f} {pz:+.3f}] m  rpy=[{rx:+.2f} {ry:+.2f} {rz:+.2f}] rad")
@@ -76,10 +85,16 @@ def main() -> None:
             print("  格式 / Format: x y z [roll pitch yaw] [duration]")
             continue
 
+        if len(vals) not in (3, 6, 7) or not np.all(np.isfinite(vals)):
+            print("  需要有效的位置/姿态输入 / Invalid pose input")
+            continue
         x, y, z = vals[0], vals[1], vals[2]
-        roll = vals[3] if len(vals) >= 6 else 0.0
-        pitch = vals[4] if len(vals) >= 6 else 0.0
-        yaw = vals[5] if len(vals) >= 6 else 0.0
+        if len(vals) >= 6:
+            roll, pitch, yaw = vals[3:6]
+        else:
+            q, _, _ = rebotarm.get_state()
+            _, rpy = joint_to_pose(q[:rebotarm.arm.num_joints])
+            roll, pitch, yaw = map(float, rpy)
         duration = vals[6] if len(vals) >= 7 else 2.0
 
         ok = ctrl.move_to_traj(
@@ -90,8 +105,6 @@ def main() -> None:
         print(f"  -> ({x:+.3f}, {y:+.3f}, {z:+.3f})  "
               f"T={duration:.1f}{'ok' if ok else 'failed'}")
 
-    ctrl.end()
-    print("\n完成 / Done.")
 
 
 if __name__ == "__main__":
