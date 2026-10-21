@@ -69,6 +69,45 @@ class ExampleModelMappingTests(unittest.TestCase):
                 self.assertEqual(result.q.shape, (8,))
                 np.testing.assert_array_equal(result.q[6:], [0, 0])
 
+    def test_fk_sim_accepts_six_and_seven_angles_without_mapping_motor_angle_to_fingers(self):
+        for vendor, model, frame_id in self.models():
+            with self.subTest(vendor=vendor):
+                example = load_example("fk_sim_example", "sim/fk_sim.py")
+                viz = Mock(model=model)
+                output = io.StringIO()
+
+                def fk(m, q):
+                    return compute_fk(m, q, frame_name=model.frames[frame_id].name)
+
+                with patch.object(example, "Visualizer", return_value=viz), \
+                        patch.object(example, "get_arm_joint_count", return_value=6), \
+                        patch.object(example, "compute_fk", side_effect=fk), \
+                        patch.object(example.signal, "signal"), \
+                        patch.object(example.time, "sleep"), \
+                        patch("builtins.input", side_effect=["30 0 0 0 0 0", "30 0 0 0 0 0 12 # gripper motor degrees", "q"]), \
+                        contextlib.redirect_stdout(output):
+                    example.main()
+                self.assertEqual(viz.update.call_count, 3)
+                six = viz.update.call_args_list[1].args[0]
+                seven = viz.update.call_args_list[2].args[0]
+                np.testing.assert_array_equal(six, seven)
+                np.testing.assert_allclose(seven[:6], np.radians([30, 0, 0, 0, 0, 0]))
+                np.testing.assert_array_equal(seven[6:], 0.)
+                self.assertIn("已忽略夹爪电机角度 12°", output.getvalue())
+
+    def test_fk_sim_rejects_invalid_optional_gripper_angles_and_wrong_counts(self):
+        example = load_example("fk_sim_example", "sim/fk_sim.py")
+        model = load_robot_model(str(ROOT / "urdf/RS/urdf/ReBot_Arm_RS.urdf"))
+        viz = Mock(model=model)
+        with patch.object(example, "Visualizer", return_value=viz), \
+                patch.object(example, "get_arm_joint_count", return_value=6), \
+                patch.object(example.signal, "signal"), \
+                patch.object(example.time, "sleep"), \
+                patch("builtins.input", side_effect=["30 0 0 0 0 0 nan", "30 0 0 0 0 0 inf", "30 0 0 0 0 0 bad", "30 0 0 0 0", "30 0 0 0 0 0 1 2", "q"]), \
+                contextlib.redirect_stdout(io.StringIO()):
+            example.main()
+        viz.update.assert_called_once()
+
     def test_sim_trajectory_does_not_move_fingers_in_null_space(self):
         example = load_example("traj_sim_example", "sim/traj_sim.py")
         for vendor, model, frame_id in self.models():

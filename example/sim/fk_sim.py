@@ -5,9 +5,11 @@
     python example/sim/fk_sim.py
 
 控制:
-    输入 6 个关节角度（度），空格分隔
+    输入 6 个机械臂关节角度（度），可附加第 7 个夹爪电机角度
+    第 7 个值仅兼容实机输入格式，仿真忽略该值，夹指位移保持 0 米
     例: 0 0 0 0 0 0
     例: 45 -30 15 -60 90 180
+    例: 30 0 0 0 0 0 12  # 第 7 个夹爪电机角度在仿真中忽略
     q / quit / exit: 退出
 """
 
@@ -42,7 +44,8 @@ def main():
     q = pin.neutral(viz.model)
     viz.update(q)
 
-    print(f"MeshCat 已打开. 输入 {n_arm} 个 arm 关节角度（度），夹指位移保持 0 米:")
+    print(f"MeshCat 已打开. 输入 {n_arm} 或 {n_arm + 1} 个角度（度）:")
+    print(f"  前 {n_arm} 个控制 arm；可选的夹爪电机角度将忽略，夹指位移保持 0 米")
     print("  q/quit/exit: 退出\n")
 
     while not should_exit:
@@ -61,8 +64,8 @@ def main():
 
         try:
             q_deg = [float(x) for x in line.split()]
-            if len(q_deg) != n_arm:
-                print(f"需要 {n_arm} 个值（夹爪在仿真中保持 0）\n")
+            if len(q_deg) not in (n_arm, n_arm + 1):
+                print(f"需要 {n_arm} 或 {n_arm + 1} 个值（可选夹爪电机角度在仿真中忽略）\n")
                 continue
         except ValueError:
             print("无效输入\n")
@@ -71,7 +74,9 @@ def main():
         if not np.all(np.isfinite(q_deg)):
             print("输入必须是有限数字\n")
             continue
-        q = pad_q_for_model(viz.model, np.radians(q_deg), n_arm)
+        if len(q_deg) == n_arm + 1:
+            print(f"  已忽略夹爪电机角度 {q_deg[-1]:g}°；URDF 夹指位移保持 0 米")
+        q = pad_q_for_model(viz.model, np.radians(q_deg[:n_arm]), n_arm)
         viz.update(q)
 
         pos, rot, _ = compute_fk(viz.model, q)
