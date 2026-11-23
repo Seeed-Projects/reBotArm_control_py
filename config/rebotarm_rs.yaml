@@ -137,7 +137,7 @@ gravity_compensation:
   # Legacy/default values kept for existing consumers.
   kp: 1.5
   kd: 1.0
-  tau_scale: [1.0, 0.98, 0.98, 1.0, 1.0, 1.0]
+  tau_scale: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
   transition_duration: 0.5
 
   # Example 9: compliant gravity compensation.
@@ -145,7 +145,7 @@ gravity_compensation:
     basic:
       kp: 15.0
       kd: 2.5
-      tau_scale: [1.0, 0.98, 0.98, 1.0, 1.0, 1.0]
+      tau_scale: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
       transition_duration: 0.5
       log_every: 20
 
@@ -155,7 +155,7 @@ gravity_compensation:
       kd: 1.0
       ki: 1.0
       integral_limit: 0.3
-      tau_scale: [1.0, 0.98, 0.98, 1.0, 1.0, 1.0]
+      tau_scale: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
       transition_duration: 0.5
       linear_release_threshold: 0.04
       angular_release_threshold: 0.08
