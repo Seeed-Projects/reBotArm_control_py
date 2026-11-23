@@ -56,11 +56,9 @@ def compute_inverse_dynamics(
 
             from reBotArm_control_py.dynamics import compute_inverse_dynamics
 
-            q = robot.get_joint_positions()
-            v = robot.get_joint_velocities()
-            a = np.zeros(6)  # 零加速度 = 纯重力平衡力矩
-
-            tau_gravity_balance = compute_inverse_dynamics(q, v, a)
+            q = robot.arm.get_positions()
+            # 默认速度和加速度为零，向量长度由模型的 nv 决定。
+            tau_gravity_balance = compute_inverse_dynamics(q=q)
     """
     if model is None:
         model = load_dynamics_model()
