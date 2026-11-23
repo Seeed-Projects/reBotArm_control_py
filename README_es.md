@@ -14,3 +14,7 @@ Para las instrucciones de uso completas, consulta la wiki oficial:
 
 - **Versión DM (motores Damiao)**: [https://wiki.seeedstudio.com/es/rebot_arm_b601_dm_pinocchio_meshcat/](https://wiki.seeedstudio.com/es/rebot_arm_b601_dm_pinocchio_meshcat/)
 - **Versión RS (motores RobStride)**: [https://wiki.seeedstudio.com/es/rebot_arm_b601_rs_pinocchio_meshcat/](https://wiki.seeedstudio.com/es/rebot_arm_b601_rs_pinocchio_meshcat/)
+
+## Modelo RS actual
+
+El URDF RS actual utiliza las masas y los centros de masa medidos. La masa total del modelo es de 6,5503 kg. Cada dedo de la pinza pesa 55,9 g y tiene un recorrido de 0 a 50 mm. [Archivo URDF](urdf/RS/urdf/ReBot_Arm_RS.urdf)

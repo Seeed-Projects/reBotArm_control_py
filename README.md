@@ -14,3 +14,7 @@ For complete usage instructions, please refer to the official wiki:
 
 - **DM Version (Damiao Motors)**: [https://wiki.seeedstudio.com/rebot_arm_b601_dm_pinocchio_meshcat/](https://wiki.seeedstudio.com/rebot_arm_b601_dm_pinocchio_meshcat/)
 - **RS Version (RobStride Motors)**: [https://wiki.seeedstudio.com/rebot_arm_b601_rs_pinocchio_meshcat/](https://wiki.seeedstudio.com/rebot_arm_b601_rs_pinocchio_meshcat/)
+
+## Current RS model
+
+The current RS URDF uses measured masses and centers of mass. The model totals 6.5503 kg. Each gripper finger weighs 55.9 g and has 0–50 mm of travel. [URDF source](urdf/RS/urdf/ReBot_Arm_RS.urdf)
